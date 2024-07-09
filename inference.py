@@ -92,8 +92,9 @@ def main(tempdir, patient_num: int):
         test_output = sliding_window_inference(test_image, roi_size, sw_batch_size, model)
         test_output = [post_trans(i) for i in decollate_batch(test_output)]
     set_trace()
-    fig, ax = plt.subplots(1, 1)
-    ax.imshow(test_output[0][0].cpu().detach().numpy())
+    fig, ax = plt.subplots(1, 2)
+    ax[0].imshow(test_image[0][0].cpu().detach().numpy())
+    ax[1].imshow(test_output[0][0].cpu().detach().numpy())
     plt.show()
 
 if __name__ == "__main__":

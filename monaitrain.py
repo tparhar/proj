@@ -32,6 +32,10 @@ from monai.visualize import plot_2d_or_3d_image
 import prepdata
 from pdb import set_trace
 
+#GLOBALS-----------------------------
+num_epochs = 150
+lr = 1e-03
+
 def main(tempdir, patient_num: int):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -104,7 +108,7 @@ def main(tempdir, patient_num: int):
         num_res_units=2,
     ).to(device)
     loss_function = monai.losses.DiceLoss(sigmoid=True)
-    optimizer = torch.optim.Adam(model.parameters(), 1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     # start a typical PyTorch training
     val_interval = 2
@@ -113,9 +117,14 @@ def main(tempdir, patient_num: int):
     epoch_loss_values = list()
     metric_values = list()
     writer = SummaryWriter()
-    for epoch in range(10):
+
+    #LOG HYPERPARAMETERS-------------------------
+
+
+
+    for epoch in range(num_epochs):
         print("-" * 10)
-        print(f"epoch {epoch + 1}/{10}")
+        print(f"epoch {epoch + 1}/{num_epochs}")
         model.train()
         epoch_loss = 0
         step = 0
