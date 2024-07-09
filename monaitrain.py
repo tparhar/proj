@@ -32,8 +32,10 @@ from monai.visualize import plot_2d_or_3d_image
 import prepdata
 from pdb import set_trace
 
+from datetime import datetime
+
 #GLOBALS-----------------------------
-num_epochs = 150
+num_epochs = 10
 lr = 1e-03
 
 def main(tempdir, patient_num: int):
@@ -116,11 +118,9 @@ def main(tempdir, patient_num: int):
     best_metric_epoch = -1
     epoch_loss_values = list()
     metric_values = list()
-    writer = SummaryWriter()
-
-    #LOG HYPERPARAMETERS-------------------------
-
-
+    now = datetime.now().strftime('%b_%d_%y_%H-%M')
+    logdir = 'runs/' + now
+    writer = SummaryWriter(logdir)
 
     for epoch in range(num_epochs):
         print("-" * 10)
@@ -179,6 +179,15 @@ def main(tempdir, patient_num: int):
                 plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag="label")
                 plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag="output")
 
+    #LOG HYPERPARAMETERS-------------------------
+    writer.add_hparams(
+    {
+        "Learning Rate": lr,
+        "Num_Epochs": num_epochs
+    },
+    {
+        "Dice Metric": best_metric
+    })
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
 
