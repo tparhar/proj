@@ -3,3 +3,6 @@ newpatients/
 csv_files/
 __pycache__/
 *.pth
+mlartifacts/
+mlruns/
+model_summary.txt

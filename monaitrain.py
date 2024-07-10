@@ -35,8 +35,12 @@ from pdb import set_trace
 from datetime import datetime
 
 #GLOBALS-----------------------------
-num_epochs = 10
-lr = 1e-03
+num_epochs = int(sys.argv[1]) or 10
+lr = float(sys.argv[2]) or 1e-03
+train_batch_size = 2
+val_batch_size = 1
+num_workers = 4
+exp_name = "cluster_runs/"
 
 def main(tempdir, patient_num: int):
     monai.config.print_config()
@@ -88,15 +92,15 @@ def main(tempdir, patient_num: int):
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
     train_loader = DataLoader(
         train_ds,
-        batch_size=2,
+        batch_size=train_batch_size,
         shuffle=True,
-        num_workers=4,
+        num_workers=num_workers,
         collate_fn=list_data_collate,
         pin_memory=torch.cuda.is_available(),
     )
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
+    val_loader = DataLoader(val_ds, batch_size=val_batch_size, num_workers=num_workers, collate_fn=list_data_collate)
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
     post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
     # create UNet, DiceLoss and Adam optimizer
@@ -119,8 +123,8 @@ def main(tempdir, patient_num: int):
     epoch_loss_values = list()
     metric_values = list()
     now = datetime.now().strftime('%b_%d_%y_%H-%M')
-    logdir = 'runs/' + now
-    writer = SummaryWriter(logdir)
+    logdir = 'runs/' + exp_name + now
+    writer = SummaryWriter(log_dir=logdir)
 
     for epoch in range(num_epochs):
         print("-" * 10)
@@ -166,7 +170,7 @@ def main(tempdir, patient_num: int):
                 if metric > best_metric:
                     best_metric = metric
                     best_metric_epoch = epoch + 1
-                    torch.save(model.state_dict(), "best_metric_model_segmentation2d_dict.pth")
+                    torch.save(model.state_dict(), logdir + "/best_metric_model_segmentation2d_dict.pth")
                     print("saved new best metric model")
                 print(
                     "current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}".format(
@@ -179,18 +183,13 @@ def main(tempdir, patient_num: int):
                 plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag="label")
                 plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag="output")
 
-    #LOG HYPERPARAMETERS-------------------------
-    writer.add_hparams(
-    {
-        "Learning Rate": lr,
-        "Num_Epochs": num_epochs
-    },
-    {
-        "Dice Metric": best_metric
-    })
-    print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
-    writer.close()
+                writer.add_scalar("learning_rate", lr, epoch+1)
+                writer.add_scalar("num_epochs", num_epochs, epoch+1)
+                writer.add_scalar("train_batch_size", train_batch_size, epoch+1)
+                writer.add_scalar("val_batch_size", val_batch_size, epoch+1)
 
+    writer.close()
+    print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
 
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tempdir:
