@@ -82,7 +82,7 @@ def main(tempdir, patient_num: int):
         strides=(2, 2, 2, 2),
         num_res_units=2,
     ).to(device)
-    model.load_state_dict(torch.load('best_metric_model_segmentation2d_dict.pth'))
+    model.load_state_dict(torch.load('runs/cluster_runs/Jul_10_24_00-53/best_metric_model_segmentation2d_dict.pth'))
     model.eval()
     with torch.no_grad():
         test_data = next(iter(test_loader))
