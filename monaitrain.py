@@ -48,7 +48,7 @@ def main(tempdir, patient_num: int):
 
     # create a temporary directory and 40 random image, mask pairs
     print(f"generating synthetic data to {tempdir} (this may take a while)")
-    all_dicom_images = prepdata.load_dicom_images(r'C:/Users/mrtan/Desktop/Job Stuff/Sum2024Research/proj/newpatients/p'+str(patient_num)+'/')
+    all_dicom_images = prepdata.load_dicom_images(r'new_patients/p'+str(patient_num)+'/')
     image_shape = all_dicom_images.shape[1:]
 
     pairs = prepdata.csv_extractor()
