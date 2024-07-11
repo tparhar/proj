@@ -70,7 +70,7 @@ def main(tempdir, patient_num: int):
 
     # create a test dataset
     test_ds = monai.data.Dataset(data=test_files, transform=val_transforms)
-    test_loader = DataLoader(test_ds, batch_size=1, num_workers=4, collate_fn=list_data_collate)
+    test_loader = DataLoader(test_ds, batch_size=1, shuffle=True, num_workers=4, collate_fn=list_data_collate)
     post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

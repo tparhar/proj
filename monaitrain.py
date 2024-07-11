@@ -35,8 +35,10 @@ from pdb import set_trace
 from datetime import datetime
 
 #GLOBALS-----------------------------
-num_epochs = int(sys.argv[1]) or 10
-lr = float(sys.argv[2]) or 1e-03
+# num_epochs = int(sys.argv[1]) or 10
+# lr = float(sys.argv[2]) or 1e-03
+num_epochs = 10
+lr = 1e-03
 train_batch_size = 2
 val_batch_size = 1
 num_workers = 4
@@ -136,6 +138,7 @@ def main(tempdir, patient_num: int):
             step += 1
             inputs, labels = batch_data["img"].to(device), batch_data["seg"].to(device)
             optimizer.zero_grad()
+            set_trace()
             outputs = model(inputs)
             loss = loss_function(outputs, labels)
             loss.backward()
