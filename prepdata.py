@@ -48,6 +48,18 @@ def load_dicom_images(folder_path: str) -> np.ndarray: #make sure this is abs_pa
         index += 1
     return all_images
 
+def load_images_and_masks(folder_path: str) -> list[np.ndarray]:
+    patients = glob.glob(os.path.join(folder_path, 'p*'))
+    all_patient_images = list()
+    all_patient_masks = list()
+    pairs = csv_extractor()
+    for idx, patient in enumerate(patients):
+        single_patient_images = load_dicom_images(os.path.join(patient))
+        image_shape = single_patient_images.shape[1:]
+        all_patient_masks.append(create_masks_from_convex_hull(image_shape, pairs[idx]))
+        all_patient_images.append(single_patient_images)
+    return all_patient_images, all_patient_masks
+
 def create_mask_from_convex_hull(image_shape, convex_hull_coords):
     mask = np.zeros(image_shape, dtype=np.float32)
     convex_hull_coords = np.array(convex_hull_coords, dtype=np.int32)
@@ -64,7 +76,7 @@ def create_masks_from_convex_hull(image_shape: tuple, convex_hull_coords: np.nda
     return all_masks
 
 #Parsing CSV of patients to retrieve mask coordinates
-def csv_extractor():
+def csv_extractor() -> list[np.ndarray]:
     path=r'csv_files/'
 
     filenames = sorted( filter( os.path.isfile,
@@ -99,7 +111,8 @@ def csv_extractor():
             return combined
 
         pairs = coords_to_pairs(x_coords, y_coords)
-        return pairs
+        patients.append(pairs)
+    return patients
 
 
 if __name__ == "__main__":
