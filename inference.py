@@ -41,10 +41,10 @@ def main(tempdir, patient_num: int):
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     print(f"generating synthetic data to {tempdir} (this may take a while)")
-    all_dicom_images = prepdata.load_dicom_images(r'C:/Users/mrtan/Desktop/Job Stuff/Sum2024Research/proj/newpatients/p'+str(patient_num)+'/')
+    all_dicom_images = prepdata.load_dicom_images(r'new_patients/p'+str(patient_num)+'/')
     image_shape = all_dicom_images.shape[1:]
 
-    pairs = prepdata.csv_extractor()
+    pairs = prepdata.csv_extractor()[0]
     all_masks = prepdata.create_masks_from_convex_hull(image_shape, pairs)
 
     for i, data in enumerate(all_dicom_images):
@@ -67,10 +67,10 @@ def main(tempdir, patient_num: int):
     check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, collate_fn=list_data_collate)
     check_data = monai.utils.misc.first(check_loader)
     print(check_data["img"].shape, check_data["seg"].shape)
-
     # create a test dataset
     test_ds = monai.data.Dataset(data=test_files, transform=val_transforms)
     test_loader = DataLoader(test_ds, batch_size=1, shuffle=True, num_workers=4, collate_fn=list_data_collate)
+    dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
     post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -91,7 +91,10 @@ def main(tempdir, patient_num: int):
         sw_batch_size = 4
         test_output = sliding_window_inference(test_image, roi_size, sw_batch_size, model)
         test_output = [post_trans(i) for i in decollate_batch(test_output)]
-    set_trace()
+        dice_metric(y_pred=test_output, y=test_label)
+    metric = dice_metric.aggregate().item()
+    print("Dice Metric: {}".format(metric))
+    dice_metric.reset()
     fig, ax = plt.subplots(1, 2)
     ax[0].imshow(test_image[0][0].cpu().detach().numpy())
     ax[1].imshow(test_output[0][0].cpu().detach().numpy())

@@ -53,7 +53,7 @@ def main(tempdir, patient_num: int):
     all_dicom_images = prepdata.load_dicom_images(r'new_patients/p'+str(patient_num)+'/')
     image_shape = all_dicom_images.shape[1:]
 
-    pairs = prepdata.csv_extractor()
+    pairs = prepdata.csv_extractor()[0]
     all_masks = prepdata.create_masks_from_convex_hull(image_shape, pairs)
 
     for i, data in enumerate(all_dicom_images):
@@ -63,6 +63,7 @@ def main(tempdir, patient_num: int):
     segs = sorted(glob(os.path.join(tempdir, "seg*.png")))
     train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
     val_files = [{"img": img, "seg": seg} for img, seg in zip(images[20:25], segs[20:25])]
+    set_trace()
     # define transforms for image and segmentation
     train_transforms = Compose(
         [

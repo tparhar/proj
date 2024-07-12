@@ -4,6 +4,7 @@ from ast import literal_eval
 from torch.utils.data import Dataset
 import glob
 import os
+from shutil import copyfile
 import pydicom
 import cv2
 from pydicom.pixel_data_handlers.util import apply_voi_lut
@@ -48,17 +49,53 @@ def load_dicom_images(folder_path: str) -> np.ndarray: #make sure this is abs_pa
         index += 1
     return all_images
 
-def load_images_and_masks(folder_path: str) -> list[np.ndarray]:
+def load_masks(folder_path: str) -> list[list[np.ndarray]]:
     patients = glob.glob(os.path.join(folder_path, 'p*'))
-    all_patient_images = list()
     all_patient_masks = list()
     pairs = csv_extractor()
     for idx, patient in enumerate(patients):
         single_patient_images = load_dicom_images(os.path.join(patient))
         image_shape = single_patient_images.shape[1:]
         all_patient_masks.append(create_masks_from_convex_hull(image_shape, pairs[idx]))
-        all_patient_images.append(single_patient_images)
-    return all_patient_images, all_patient_masks
+    return all_patient_masks
+
+def np_masks_to_dcm(np_masks: list[list[np.ndarray]], patient_dcms: list[list[str]], tempdir):
+    mask_paths = list()
+    for i in range(len(patient_dcms)):
+        for j in range(len(patient_dcms[i])):
+            ds = pydicom.dcmread(patient_dcms[i][j])
+            path_parts = patient_dcms[i][j].split('\\')
+            arr = ds.pixel_array
+            arr = np_masks[i][j].astype(ds.pixel_array.dtype)
+            ds.PixelData = arr.tobytes()
+            path = os.path.join(tempdir, path_parts[1] + "_label_" + path_parts[2] + ".dcm")
+            mask_paths.append(path)
+            ds.save_as(path)
+    return mask_paths
+
+def list_image_paths(images_path: str) -> list[list[str]]:
+    patient_subfolders = os.listdir(images_path)
+    patient_fullpaths = list()
+    for patient in patient_subfolders:
+        patient_image_fullpaths = list()
+        patient_image_paths = sorted(os.listdir(os.path.join(images_path, patient)), key=lambda a: int(a))[:30]
+        for image in patient_image_paths:
+            patient_image_fullpaths.append(os.path.join(images_path, patient, image))
+        patient_fullpaths.append(patient_image_fullpaths)
+    return patient_fullpaths
+
+def create_tempdir_paths(og_paths: str, tempdir: str) -> list[str]:
+    patient_subfolders = os.listdir(og_paths)
+    new_paths = list()
+    for patient in patient_subfolders:
+        patient_image_paths = sorted(os.listdir(os.path.join(og_paths, patient)), key=lambda a: int(a))[:30]
+        for image in patient_image_paths:
+            old_path = os.path.join(og_paths, patient, image)
+            new_path = os.path.join(tempdir, patient + "_image_" + image + ".dcm")
+            dest = copyfile(old_path, new_path)
+            new_paths.append(dest)
+    return new_paths
+
 
 def create_mask_from_convex_hull(image_shape, convex_hull_coords):
     mask = np.zeros(image_shape, dtype=np.float32)
@@ -66,13 +103,11 @@ def create_mask_from_convex_hull(image_shape, convex_hull_coords):
     cv2.fillConvexPoly(mask, convex_hull_coords, 1)
     return mask
 
-def create_masks_from_convex_hull(image_shape: tuple, convex_hull_coords: np.ndarray):
+def create_masks_from_convex_hull(image_shape: tuple, convex_hull_coords: np.ndarray) -> list[np.ndarray]:
     num_masks = convex_hull_coords.shape[0]
-    all_masks = np.empty((num_masks, *image_shape), dtype=np.float32)
-    index = 0
+    all_masks = list()
     for i in range(num_masks):
-        all_masks[index] = create_mask_from_convex_hull(image_shape, convex_hull_coords[i])
-        index += 1
+        all_masks.append(create_mask_from_convex_hull(image_shape, convex_hull_coords[i]))
     return all_masks
 
 #Parsing CSV of patients to retrieve mask coordinates

@@ -17,5 +17,7 @@ from pdb import set_trace
 
 import prepdata
 
-patient_images, patient_masks = prepdata.load_images_and_masks('new_patients/')
-set_trace()
+masks: list[list[np.ndarray]] = prepdata.load_masks('new_patients')
+dicom_patient_paths: list[list[str]] = prepdata.list_image_paths('new_patients')
+mask_paths = prepdata.np_masks_to_dcm(masks, dicom_patient_paths, 'rand')
+image_paths = prepdata.create_tempdir_paths('new_patients', 'rand')
