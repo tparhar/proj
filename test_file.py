@@ -20,4 +20,5 @@ import prepdata
 masks: list[list[np.ndarray]] = prepdata.load_masks('new_patients')
 dicom_patient_paths: list[list[str]] = prepdata.list_image_paths('new_patients')
 mask_paths = prepdata.np_masks_to_dcm(masks, dicom_patient_paths, 'rand')
+set_trace()
 image_paths = prepdata.create_tempdir_paths('new_patients', 'rand')

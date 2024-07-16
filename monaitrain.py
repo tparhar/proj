@@ -8,6 +8,7 @@ import sys
 import tempfile
 from glob import glob
 
+import numpy as np
 import torch
 from PIL import Image
 import pydicom
@@ -41,7 +42,7 @@ num_epochs = 10
 lr = 1e-03
 train_batch_size = 2
 val_batch_size = 1
-num_workers = 4
+num_workers = 6
 exp_name = "cluster_runs/"
 
 def main(tempdir, patient_num: int):
@@ -49,21 +50,29 @@ def main(tempdir, patient_num: int):
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     # create a temporary directory and 40 random image, mask pairs
-    print(f"generating synthetic data to {tempdir} (this may take a while)")
-    all_dicom_images = prepdata.load_dicom_images(r'new_patients/p'+str(patient_num)+'/')
-    image_shape = all_dicom_images.shape[1:]
+    # print(f"generating synthetic data to {tempdir} (this may take a while)")
+    # all_dicom_images = prepdata.load_dicom_images(r'new_patients/p'+str(patient_num)+'/')
+    # image_shape = all_dicom_images.shape[1:]
 
-    pairs = prepdata.csv_extractor()[0]
-    all_masks = prepdata.create_masks_from_convex_hull(image_shape, pairs)
+    # pairs = prepdata.csv_extractor()[0]
+    # all_masks = prepdata.create_masks_from_convex_hull(image_shape, pairs)
 
-    for i, data in enumerate(all_dicom_images):
-        Image.fromarray((all_dicom_images[i] * 255).astype("uint8")).save(os.path.join(tempdir, f"img{i:d}.png"))
-        Image.fromarray((all_masks[i] * 255).astype("uint8")).save(os.path.join(tempdir, f"seg{i:d}.png"))
-    images = sorted(glob(os.path.join(tempdir, "img*.png")))
-    segs = sorted(glob(os.path.join(tempdir, "seg*.png")))
-    train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
-    val_files = [{"img": img, "seg": seg} for img, seg in zip(images[20:25], segs[20:25])]
-    set_trace()
+    # for i, data in enumerate(all_dicom_images):
+    #     Image.fromarray((all_dicom_images[i] * 255).astype("uint8")).save(os.path.join(tempdir, f"img{i:d}.png"))
+    #     Image.fromarray((all_masks[i] * 255).astype("uint8")).save(os.path.join(tempdir, f"seg{i:d}.png"))
+    # images = sorted(glob(os.path.join(tempdir, "img*.png")))
+    # segs = sorted(glob(os.path.join(tempdir, "seg*.png")))
+    # train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
+    # val_files = [{"img": img, "seg": seg} for img, seg in zip(images[20:25], segs[20:25])]
+
+    masks: list[list[np.ndarray]] = prepdata.load_masks('new_patients')
+    dicom_patient_paths: list[list[str]] = prepdata.list_image_paths('new_patients')
+    segs = prepdata.np_masks_to_dcm(masks, dicom_patient_paths, tempdir)
+    images = prepdata.create_tempdir_paths('new_patients', tempdir)
+
+    train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:180], segs[:180])]
+    val_files = [{"img": img, "seg": seg} for img, seg in zip(images[180:240:30], segs[180:240:30])]
+
     # define transforms for image and segmentation
     train_transforms = Compose(
         [
@@ -139,7 +148,6 @@ def main(tempdir, patient_num: int):
             step += 1
             inputs, labels = batch_data["img"].to(device), batch_data["seg"].to(device)
             optimizer.zero_grad()
-            set_trace()
             outputs = model(inputs)
             loss = loss_function(outputs, labels)
             loss.backward()
@@ -162,7 +170,7 @@ def main(tempdir, patient_num: int):
                     val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
                     roi_size = (96, 96)
                     sw_batch_size = 4
-                    val_outputs = model(val_images)
+                    val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
                     val_outputs = [post_trans(i) for i in decollate_batch(val_outputs)]
                     # compute metric for current iteration
                     dice_metric(y_pred=val_outputs, y=val_labels)
