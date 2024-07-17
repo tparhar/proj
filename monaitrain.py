@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import tempfile
+import argparse
 from glob import glob
 
 import numpy as np
@@ -27,52 +28,40 @@ from monai.transforms import (
     RandCropByPosNegLabeld,
     RandRotate90d,
     ScaleIntensityd,
+    Spacingd
 )
 from monai.visualize import plot_2d_or_3d_image
 
-import prepdata
+import build_database
 from pdb import set_trace
 
 from datetime import datetime
 
-#GLOBALS-----------------------------
-# num_epochs = int(sys.argv[1]) or 10
-# lr = float(sys.argv[2]) or 1e-03
-num_epochs = 10
-lr = 1e-03
-train_batch_size = 2
-val_batch_size = 1
-num_workers = 6
-exp_name = "cluster_runs/"
+#GLOBALS----------------------------
 
-def main(tempdir, patient_num: int):
+parser = argparse.ArgumentParser(description="Train a model with specific hyperparameters")
+parser.add_argument('params', nargs='*', help="List of hyperparameter sets to use.")
+args = parser.parse_args()
+
+file_path = "params.json"
+if args.params:
+    params = build_database.load_hyperparameters(file_path, *args.params)
+else:
+    params = build_database.load_hyperparameters(file_path)
+
+num_epochs = params["epochs"]
+lr = params["learning_rate"]
+train_batch_size = params["train_batch_size"]
+val_batch_size = params["val_batch_size"]
+num_workers = params["num_workers"]
+exp_name = "new_cluster_runs/"
+
+def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # create a temporary directory and 40 random image, mask pairs
-    # print(f"generating synthetic data to {tempdir} (this may take a while)")
-    # all_dicom_images = prepdata.load_dicom_images(r'new_patients/p'+str(patient_num)+'/')
-    # image_shape = all_dicom_images.shape[1:]
-
-    # pairs = prepdata.csv_extractor()[0]
-    # all_masks = prepdata.create_masks_from_convex_hull(image_shape, pairs)
-
-    # for i, data in enumerate(all_dicom_images):
-    #     Image.fromarray((all_dicom_images[i] * 255).astype("uint8")).save(os.path.join(tempdir, f"img{i:d}.png"))
-    #     Image.fromarray((all_masks[i] * 255).astype("uint8")).save(os.path.join(tempdir, f"seg{i:d}.png"))
-    # images = sorted(glob(os.path.join(tempdir, "img*.png")))
-    # segs = sorted(glob(os.path.join(tempdir, "seg*.png")))
-    # train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
-    # val_files = [{"img": img, "seg": seg} for img, seg in zip(images[20:25], segs[20:25])]
-
-    masks: list[list[np.ndarray]] = prepdata.load_masks('new_patients')
-    dicom_patient_paths: list[list[str]] = prepdata.list_image_paths('new_patients')
-    segs = prepdata.np_masks_to_dcm(masks, dicom_patient_paths, tempdir)
-    images = prepdata.create_tempdir_paths('new_patients', tempdir)
-
-    train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:180], segs[:180])]
-    val_files = [{"img": img, "seg": seg} for img, seg in zip(images[180:240:30], segs[180:240:30])]
-
+    dataset = build_database.parse_database('toy_rand')
+    train_files, val_files, test_files = build_database.split_data(dataset)
     # define transforms for image and segmentation
     train_transforms = Compose(
         [
@@ -205,7 +194,7 @@ def main(tempdir, patient_num: int):
 
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as tempdir:
-        main(tempdir, 301)
+        main(tempdir)
 
 
 

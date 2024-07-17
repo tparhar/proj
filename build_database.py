@@ -1,6 +1,7 @@
 import os
 import csv
 import glob
+import json
 import pydicom
 import numpy as np
 import cv2
@@ -9,6 +10,7 @@ from re import findall
 from pdb import set_trace
 from pathlib import Path
 from ast import literal_eval
+from collections import defaultdict
 
 #Parsing CSV of patients to retrieve mask coordinates
 def csv_extractor(csv_folder, patient_id) -> list[np.ndarray]:
@@ -117,48 +119,92 @@ def build_database(patients_folder, csv_folder, outdir):
             img_and_seg_list.append({"img": dicom_path, "seg": mask_path})
     return img_and_seg_dict
 
-def train_val_test_split(database, train_percent, val_percent, test_percent):
-    sorted_patients = sorted(database.keys(), key=lambda item: int(item[1:]))
-    set_trace() 
-    num_patients = len(sorted_patients)
-    slice_train_patients = int(train_percent * num_patients)
-    slice_val_patients = int(val_percent * num_patients) + slice_train_patients
+def parse_database(database_folder):
+    # Directory containing the files
+    # Initialize the dictionary
+    sorted_dict = defaultdict(list)
 
-    train_patient_ids = sorted_patients[:slice_train_patients]
-    val_patient_ids = sorted_patients[slice_train_patients: slice_val_patients]
-    test_patient_ids = sorted_patients[slice_val_patients:]
+    # Process each file in the directory
+    for file in os.listdir(database_folder):
+        # Check if the file has the correct extension
+        if file.endswith(".dcm"):
+            # Split the filename into parts
+            parts = file.split('_')
+            patient = parts[0]  # e.g., 'p0', 'p1'
+            file_type = parts[1]  # e.g., 'img', 'seg'
+            index = parts[2].split('.')[0]  # e.g., '0', '1'
 
-    train_patients = list()
-    val_patients = list()
-    test_patients = list()
+            # Find or create the appropriate entry in the dictionary
+            if len(sorted_dict[patient]) <= int(index):
+                # Extend the list to accommodate the new index
+                sorted_dict[patient].extend([{}] * (int(index) + 1 - len(sorted_dict[patient])))
 
-    for patient_id in train_patient_ids:
-        list_of_dicts = database[patient_id]
-        for dict in list_of_dicts:
-            train_patients.append(dict)
+            # Add the file with its relative path to the appropriate dictionary within the list
+            relative_path = os.path.join(database_folder, file)
+            sorted_dict[patient][int(index)][file_type] = relative_path
 
-    for patient_id in val_patient_ids:
-        list_of_dicts = database[patient_id]
-        for dict in list_of_dicts:
-            val_patients.append(dict)
-
-    for patient_id in test_patient_ids:
-        list_of_dicts = database[patient_id]
-        for dict in list_of_dicts:
-            test_patients.append(dict)
+    # Convert defaultdict to regular dict for output
+    sorted_dict = dict(sorted_dict)
     
-    return train_patients, val_patients, test_patients
+    return sorted_dict
+
+import os
+from collections import defaultdict
+
+def split_data(data_dict, train_percent=0.7, val_percent=0.15, test_percent=0.15):
+    # Ensure the percentages sum to 1
+    assert train_percent + val_percent + test_percent == 1, "Percentages must sum to 1."
+
+    # Sort the patient keys
+    patients = sorted(data_dict.keys(), key=lambda item: int(item[1:]))
+    set_trace()
+
+    # Calculate the number of patients for each set
+    total_patients = len(patients)
+    train_count = int(total_patients * train_percent)
+    val_count = int(total_patients * val_percent)
+    test_count = total_patients - train_count - val_count
+
+    # Split the patients
+    train_patients = patients[:train_count]
+    val_patients = patients[train_count:train_count + val_count]
+    test_patients = patients[train_count + val_count:]
+
+    # Initialize the result lists
+    train_set = []
+    val_set = []
+    test_set = []
+
+    def is_valid_pair(pair):
+        img = pair.get('img', '')
+        seg = pair.get('seg', '')
+        return img and seg and img.endswith('img_0.dcm') and seg.endswith('seg_0.dcm')
+
+    for patient in train_patients:
+        train_set.extend([pair for pair in data_dict[patient] if pair.get('img', '') and pair.get('seg', '')])
+
+    # Assign data to the validation and test sets
+    for patient in val_patients:
+        val_set.extend([pair for pair in data_dict[patient] if is_valid_pair(pair)])
+
+    for patient in test_patients:
+        test_set.extend([pair for pair in data_dict[patient] if is_valid_pair(pair)])
+
+    return train_set, val_set, test_set
+
+def load_hyperparameters(file_path, *args):
+    with open(file_path, 'r') as file:
+        all_params = json.load(file)
     
-
-
+    base_params = all_params.get("base", {})
+    for param_set in args:
+        base_params.update(all_params.get(param_set, {}))
+    
+    return base_params
 
 if __name__ == "__main__":
     # TESTING
-    dataset = {
-    "p10": [{"img": 5}, {"img": 6}],
-    "p2": [{"img": 3}, {"img": 4}],
-    "p306": [{"img": 9}, {"img": 10}],
-    "p25": [{"img": 7}, {"img": 8}],
-    "p1": [{"img": 1}, {"img": 2}]
-    }
-    train_patients, val_patients, test_patients = train_val_test_split(dataset, 0.5, 0.3, 0.2)
+    build_database('toy_dataset', 'csv_files', 'toy_rand')
+    sorted_dictionary = parse_database('toy_rand')
+    train, val, test = split_data(sorted_dictionary)
+    set_trace()

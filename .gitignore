@@ -7,3 +7,6 @@ mlartifacts/
 mlruns/
 model_summary.txt
 rand/
+imgs_and_segs/
+toy_dataset/
+toy_rand/
