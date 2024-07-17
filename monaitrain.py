@@ -25,6 +25,7 @@ from monai.transforms import (
     AsDiscrete,
     Compose,
     LoadImaged,
+    RandAxisFlipd,
     RandCropByPosNegLabeld,
     RandRotate90d,
     ScaleIntensityd,
@@ -68,9 +69,11 @@ def main(tempdir):
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
             ScaleIntensityd(keys=["img", "seg"]),
+            Spacingd(keys=["img", "seg"], pixdim=(0.5, 0.5)),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96], pos=1, neg=1, num_samples=4
             ),
+            RandAxisFlipd(keys=["img", "seg"], prob=0.5),
             RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=[0, 1]),
         ]
     )
@@ -79,6 +82,7 @@ def main(tempdir):
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
             ScaleIntensityd(keys=["img", "seg"]),
+            Spacingd(keys=["img", "seg"], pixdim=(0.5, 0.5))
         ]
     )
 
@@ -142,9 +146,10 @@ def main(tempdir):
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
-            epoch_len = len(train_ds) // train_loader.batch_size
-            print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
-            writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
+            if (step % 10 == 0):
+                epoch_len = len(train_ds) // train_loader.batch_size
+                print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
+                writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
         print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")

@@ -157,7 +157,6 @@ def split_data(data_dict, train_percent=0.7, val_percent=0.15, test_percent=0.15
 
     # Sort the patient keys
     patients = sorted(data_dict.keys(), key=lambda item: int(item[1:]))
-    set_trace()
 
     # Calculate the number of patients for each set
     total_patients = len(patients)
@@ -207,4 +206,3 @@ if __name__ == "__main__":
     build_database('toy_dataset', 'csv_files', 'toy_rand')
     sorted_dictionary = parse_database('toy_rand')
     train, val, test = split_data(sorted_dictionary)
-    set_trace()
