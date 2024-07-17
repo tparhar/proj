@@ -117,8 +117,48 @@ def build_database(patients_folder, csv_folder, outdir):
             img_and_seg_list.append({"img": dicom_path, "seg": mask_path})
     return img_and_seg_dict
 
+def train_val_test_split(database, train_percent, val_percent, test_percent):
+    sorted_patients = sorted(database.keys(), key=lambda item: int(item[1:]))
+    set_trace() 
+    num_patients = len(sorted_patients)
+    slice_train_patients = int(train_percent * num_patients)
+    slice_val_patients = int(val_percent * num_patients) + slice_train_patients
+
+    train_patient_ids = sorted_patients[:slice_train_patients]
+    val_patient_ids = sorted_patients[slice_train_patients: slice_val_patients]
+    test_patient_ids = sorted_patients[slice_val_patients:]
+
+    train_patients = list()
+    val_patients = list()
+    test_patients = list()
+
+    for patient_id in train_patient_ids:
+        list_of_dicts = database[patient_id]
+        for dict in list_of_dicts:
+            train_patients.append(dict)
+
+    for patient_id in val_patient_ids:
+        list_of_dicts = database[patient_id]
+        for dict in list_of_dicts:
+            val_patients.append(dict)
+
+    for patient_id in test_patient_ids:
+        list_of_dicts = database[patient_id]
+        for dict in list_of_dicts:
+            test_patients.append(dict)
+    
+    return train_patients, val_patients, test_patients
+    
 
 
-# TESTING
-dataset = build_database("new_patients", "csv_files", "rand")
-set_trace()
+
+if __name__ == "__main__":
+    # TESTING
+    dataset = {
+    "p10": [{"img": 5}, {"img": 6}],
+    "p2": [{"img": 3}, {"img": 4}],
+    "p306": [{"img": 9}, {"img": 10}],
+    "p25": [{"img": 7}, {"img": 8}],
+    "p1": [{"img": 1}, {"img": 2}]
+    }
+    train_patients, val_patients, test_patients = train_val_test_split(dataset, 0.5, 0.3, 0.2)
