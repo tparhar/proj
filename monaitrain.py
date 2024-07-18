@@ -16,7 +16,7 @@ import pydicom
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import create_test_image_2d, list_data_collate, decollate_batch, DataLoader
+from monai.data import create_test_image_2d, list_data_collate, pad_list_data_collate, decollate_batch, DataLoader
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.transforms import (
@@ -44,6 +44,8 @@ parser = argparse.ArgumentParser(description="Train a model with specific hyperp
 parser.add_argument('params', nargs='*', help="List of hyperparameter sets to use.")
 args = parser.parse_args()
 
+database_folder = 'toy_rand'
+
 file_path = "params.json"
 if args.params:
     params = build_database.load_hyperparameters(file_path, *args.params)
@@ -61,7 +63,7 @@ def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    dataset = build_database.parse_database('toy_rand')
+    dataset = build_database.parse_database(database_folder)
     train_files, val_files, test_files = build_database.split_data(dataset)
     # define transforms for image and segmentation
     train_transforms = Compose(
@@ -69,7 +71,6 @@ def main(tempdir):
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
             ScaleIntensityd(keys=["img", "seg"]),
-            Spacingd(keys=["img", "seg"], pixdim=(0.5, 0.5)),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96], pos=1, neg=1, num_samples=4
             ),
@@ -82,14 +83,13 @@ def main(tempdir):
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
             ScaleIntensityd(keys=["img", "seg"]),
-            Spacingd(keys=["img", "seg"], pixdim=(0.5, 0.5))
         ]
     )
 
     # define dataset, data loader
     check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, collate_fn=list_data_collate)
+    check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, collate_fn=pad_list_data_collate)
     check_data = monai.utils.misc.first(check_loader)
     print(check_data["img"].shape, check_data["seg"].shape)
     # create a training data loader
@@ -100,12 +100,12 @@ def main(tempdir):
         batch_size=train_batch_size,
         shuffle=True,
         num_workers=num_workers,
-        collate_fn=list_data_collate,
+        collate_fn=pad_list_data_collate,
         pin_memory=torch.cuda.is_available(),
     )
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=val_batch_size, num_workers=num_workers, collate_fn=list_data_collate)
+    val_loader = DataLoader(val_ds, batch_size=val_batch_size, num_workers=num_workers, collate_fn=pad_list_data_collate)
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
     post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
     # create UNet, DiceLoss and Adam optimizer
@@ -128,7 +128,7 @@ def main(tempdir):
     epoch_loss_values = list()
     metric_values = list()
     now = datetime.now().strftime('%b_%d_%y_%H-%M')
-    logdir = 'runs/' + exp_name + now
+    logdir = 'runs/' + exp_name + "_lr_" + str(lr) + "_epochs_" + str(num_epochs) + "_batchsize_" + str(train_batch_size)
     writer = SummaryWriter(log_dir=logdir)
 
     for epoch in range(num_epochs):
@@ -136,6 +136,7 @@ def main(tempdir):
         print(f"epoch {epoch + 1}/{num_epochs}")
         model.train()
         epoch_loss = 0
+        epoch_len = len(train_ds) // train_loader.batch_size
         step = 0
         for batch_data in train_loader:
             step += 1
@@ -147,8 +148,6 @@ def main(tempdir):
             optimizer.step()
             epoch_loss += loss.item()
             if (step % 10 == 0):
-                epoch_len = len(train_ds) // train_loader.batch_size
-                print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
                 writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
@@ -188,11 +187,6 @@ def main(tempdir):
                 plot_2d_or_3d_image(val_images, epoch + 1, writer, index=0, tag="image")
                 plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag="label")
                 plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag="output")
-
-                writer.add_scalar("learning_rate", lr, epoch+1)
-                writer.add_scalar("num_epochs", num_epochs, epoch+1)
-                writer.add_scalar("train_batch_size", train_batch_size, epoch+1)
-                writer.add_scalar("val_batch_size", val_batch_size, epoch+1)
 
     writer.close()
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
