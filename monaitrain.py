@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 import argparse
+import pydicom
 from glob import glob
 
 import numpy as np
@@ -62,6 +63,7 @@ exp_name = "new_cluster_runs/"
 def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.getLogger('pydicom').setLevel(logging.WARNING)
 
     dataset = build_database.parse_database(database_folder)
     train_files, val_files, test_files = build_database.split_data(dataset)
@@ -147,8 +149,7 @@ def main(tempdir):
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
-            if (step % 10 == 0):
-                writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
+            writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
         print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
