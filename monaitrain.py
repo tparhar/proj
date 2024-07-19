@@ -62,7 +62,7 @@ lr = params["learning_rate"]
 train_batch_size = params["train_batch_size"]
 val_batch_size = params["val_batch_size"]
 num_workers = params["num_workers"]
-exp_name = "new_transforms/no_scheduler/"
+exp_name = "new_transforms/scheduler/resize/"
 
 def main(tempdir):
     monai.config.print_config()
@@ -132,6 +132,7 @@ def main(tempdir):
     ).to(device)
     loss_function = monai.losses.DiceLoss(sigmoid=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max')
 
     # start a typical PyTorch training
     val_interval = 2
@@ -150,6 +151,7 @@ def main(tempdir):
         epoch_loss = 0
         epoch_len = len(train_ds) // train_loader.batch_size
         step = 0
+        current_lr = scheduler.get_last_lr()[0]
         for batch_data in train_loader:
             step += 1
             inputs, labels = batch_data["img"].to(device), batch_data["seg"].to(device)
@@ -163,7 +165,7 @@ def main(tempdir):
                 writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
-        print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
+        print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f} current_lr: {current_lr:.3e}")
 
         if (epoch + 1) % val_interval == 0:
             model.eval()
@@ -181,6 +183,7 @@ def main(tempdir):
                     dice_metric(y_pred=val_outputs, y=val_labels)
                 # aggregate the final mean dice result
                 metric = dice_metric.aggregate().item()
+                scheduler.step(metric)
                 # reset the status for next validation round
                 dice_metric.reset()
                 metric_values.append(metric)
