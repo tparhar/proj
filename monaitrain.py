@@ -27,10 +27,14 @@ from monai.transforms import (
     Compose,
     LoadImaged,
     RandAxisFlipd,
-    RandCropByPosNegLabeld,
     RandRotate90d,
-    ScaleIntensityd,
-    Spacingd
+    RandAdjustContrastd,
+    RandGaussianNoised,
+    RandKSpaceSpikeNoised,
+    RandRicianNoised,
+    RandShiftIntensityd,
+    Resized,
+    ScaleIntensityRangePercentilesd,
 )
 from monai.visualize import plot_2d_or_3d_image
 
@@ -58,12 +62,13 @@ lr = params["learning_rate"]
 train_batch_size = params["train_batch_size"]
 val_batch_size = params["val_batch_size"]
 num_workers = params["num_workers"]
-exp_name = "new_cluster_runs/"
+exp_name = "new_transforms/no_scheduler/"
 
 def main(tempdir):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    logging.getLogger('pydicom').setLevel(logging.WARNING)
+    logger = logging.getLogger('pydicom')
+    logger.disabled = True
 
     dataset = build_database.parse_database(database_folder)
     train_files, val_files, test_files = build_database.split_data(dataset)
@@ -72,19 +77,24 @@ def main(tempdir):
         [
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            ScaleIntensityd(keys=["img", "seg"]),
-            RandCropByPosNegLabeld(
-                keys=["img", "seg"], label_key="seg", spatial_size=[96, 96], pos=1, neg=1, num_samples=4
-            ),
+            Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+            ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
+            RandAdjustContrastd(keys="img"),
+            RandShiftIntensityd(keys="img", offsets=(10, 20)),
+            RandGaussianNoised(keys="img"),
+            RandRicianNoised(keys="img"),
+            RandKSpaceSpikeNoised(keys="img"),
             RandAxisFlipd(keys=["img", "seg"], prob=0.5),
             RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=[0, 1]),
+            ScaleIntensityRangePercentilesd(keys="img", lower=5, upper=95, b_min=0, b_max=1)
         ]
     )
     val_transforms = Compose(
         [
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            ScaleIntensityd(keys=["img", "seg"]),
+            Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+            ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
         ]
     )
 
@@ -130,7 +140,7 @@ def main(tempdir):
     epoch_loss_values = list()
     metric_values = list()
     now = datetime.now().strftime('%b_%d_%y_%H-%M')
-    logdir = 'runs/' + exp_name + "_lr_" + str(lr) + "_epochs_" + str(num_epochs) + "_batchsize_" + str(train_batch_size)
+    logdir = 'runs/' + exp_name + database_folder + "_lr_" + str(lr) + "_epochs_" + str(num_epochs) + "_batchsize_" + str(train_batch_size)
     writer = SummaryWriter(log_dir=logdir)
 
     for epoch in range(num_epochs):

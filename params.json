@@ -25,6 +25,9 @@
     "most_epochs":{
         "epochs": 250
     },
+    "so_many_epochs": {
+        "epochs": 1000
+    },
     "small_train_batch_size": {
         "train_batch_size": 16
     },
