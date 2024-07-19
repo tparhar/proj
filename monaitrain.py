@@ -159,7 +159,8 @@ def main(tempdir):
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
-            writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
+            if (step % 10 == 0):
+                writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
         print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
