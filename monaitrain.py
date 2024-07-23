@@ -62,7 +62,7 @@ lr = params["learning_rate"]
 train_batch_size = params["train_batch_size"]
 val_batch_size = params["val_batch_size"]
 num_workers = params["num_workers"]
-exp_name = "new_transforms/scheduler/resize/"
+exp_name = "new_transforms/scheduler/no_resize/more_patience/"
 
 def main(tempdir):
     monai.config.print_config()
@@ -77,7 +77,7 @@ def main(tempdir):
         [
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+            # Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
             ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
             RandAdjustContrastd(keys="img"),
             RandShiftIntensityd(keys="img", offsets=(10, 20)),
@@ -93,7 +93,7 @@ def main(tempdir):
         [
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+            # Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
             ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
         ]
     )
@@ -132,7 +132,7 @@ def main(tempdir):
     ).to(device)
     loss_function = monai.losses.DiceLoss(sigmoid=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max')
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=100)
 
     # start a typical PyTorch training
     val_interval = 2
@@ -177,7 +177,7 @@ def main(tempdir):
                     val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
                     roi_size = (96, 96)
                     sw_batch_size = 4
-                    val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
+                    val_outputs = model(val_images)
                     val_outputs = [post_trans(i) for i in decollate_batch(val_outputs)]
                     # compute metric for current iteration
                     dice_metric(y_pred=val_outputs, y=val_labels)
