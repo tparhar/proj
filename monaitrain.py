@@ -77,7 +77,7 @@ def main(tempdir):
         [
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            # Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+            Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
             ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
             RandAdjustContrastd(keys="img"),
             RandShiftIntensityd(keys="img", offsets=(10, 20)),
@@ -93,7 +93,7 @@ def main(tempdir):
         [
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            # Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+            Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
             ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
         ]
     )
