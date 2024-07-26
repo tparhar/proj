@@ -25,6 +25,9 @@
     "most_epochs":{
         "epochs": 250
     },
+    "medium_epochs":{
+        "epochs": 500
+    },
     "so_many_epochs": {
         "epochs": 1000
     },

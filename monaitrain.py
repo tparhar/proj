@@ -62,7 +62,7 @@ lr = params["learning_rate"]
 train_batch_size = params["train_batch_size"]
 val_batch_size = params["val_batch_size"]
 num_workers = params["num_workers"]
-exp_name = "new_transforms/scheduler/no_resize/more_patience/"
+exp_name = "new_transforms/"
 
 def main(tempdir):
     monai.config.print_config()
@@ -130,9 +130,9 @@ def main(tempdir):
         strides=(2, 2, 2, 2),
         num_res_units=2,
     ).to(device)
-    loss_function = monai.losses.DiceLoss(sigmoid=True)
+    loss_function = monai.losses.DiceCELoss(sigmoid=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=100)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=50)
 
     # start a typical PyTorch training
     val_interval = 2

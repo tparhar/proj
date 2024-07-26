@@ -15,7 +15,8 @@ from monai.transforms import (
     AsDiscrete,
     Compose,
     LoadImaged,
-    ScaleIntensityd
+    Resized,
+    ScaleIntensityRangePercentilesd,
 )
 
 import build_database
@@ -32,7 +33,8 @@ def main():
         [
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            ScaleIntensityd(keys=["img", "seg"]),
+            Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+            ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
         ]
     )
 
@@ -51,7 +53,7 @@ def main():
         strides=(2, 2, 2, 2),
         num_res_units=2,
     ).to(device)
-    model.load_state_dict(torch.load('runs/new_cluster_runs/_lr_0.001_epochs_150_batchsize_32/best_metric_model_segmentation2d_dict.pth'))
+    model.load_state_dict(torch.load('runs/new_transforms/imgs_and_segs_lr_0.0001_epochs_150_batchsize_32/best_metric_model_segmentation2d_dict.pth'))
     model.eval()
     with torch.no_grad():
         test_images = None
@@ -61,7 +63,7 @@ def main():
             test_images, test_labels = test_data["img"].to(device), test_data["seg"].to(device)
             roi_size = (96, 96)
             sw_batch_size = 4
-            test_outputs = sliding_window_inference(test_images, roi_size, sw_batch_size, model)
+            test_outputs = model(test_images)
             test_outputs = [post_trans(i) for i in decollate_batch(test_outputs)]
             # compute metric for current iteration
             dice_metric(y_pred=test_outputs, y=test_labels)
