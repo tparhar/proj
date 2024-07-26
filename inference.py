@@ -53,7 +53,7 @@ def main():
         strides=(2, 2, 2, 2),
         num_res_units=2,
     ).to(device)
-    model.load_state_dict(torch.load('runs/new_transforms/imgs_and_segs_lr_0.0001_epochs_150_batchsize_32/best_metric_model_segmentation2d_dict.pth'))
+    model.load_state_dict(torch.load('runs/new_transforms/imgs_and_segs_lr_0.001_epochs_500_batchsize_32/best_metric_model_segmentation2d_dict.pth'))
     model.eval()
     with torch.no_grad():
         test_images = None
