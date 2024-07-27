@@ -2,6 +2,7 @@ import os
 import csv
 import glob
 import json
+import random
 import pydicom
 import numpy as np
 import cv2
@@ -11,6 +12,8 @@ from pdb import set_trace
 from pathlib import Path
 from ast import literal_eval
 from collections import defaultdict
+
+import pydicom.encaps
 
 #Parsing CSV of patients to retrieve mask coordinates
 def csv_extractor(csv_folder, patient_id) -> list[np.ndarray]:
@@ -92,8 +95,13 @@ def build_database(patients_folder, csv_folder, outdir):
         for idx, val in enumerate(dicom_file_paths):
             dicom_path = os.path.join(outdir, patient_num + "_img_" + os.path.basename(val))
             ds = pydicom.dcmread(dicom_file_paths[idx])
+            try:
+                arr = patient_masks[idx].astype(ds.pixel_array.dtype)
+            except:
+                print("The csv file was missing time steps")
+                break
+
             ds.save_as(dicom_path)
-            arr = patient_masks[idx].astype(ds.pixel_array.dtype)
             ds.PixelData = arr.tobytes()
 
             ds.Rows, ds.Columns = arr.shape
@@ -157,6 +165,8 @@ def split_data(data_dict, train_percent=0.7, val_percent=0.15, test_percent=0.15
 
     # Sort the patient keys
     patients = sorted(data_dict.keys(), key=lambda item: int(item[1:]))
+    set_trace()
+    random.Random(42).shuffle(patients)
 
     # Calculate the number of patients for each set
     total_patients = len(patients)
@@ -203,6 +213,6 @@ def load_hyperparameters(file_path, *args):
 
 if __name__ == "__main__":
     # TESTING
-    build_database('toy_dataset', 'csv_files', 'toy_rand')
-    sorted_dictionary = parse_database('toy_rand')
+    # build_database('new_patients', 'csv_files', 'imgs_and_segs')
+    sorted_dictionary = parse_database('imgs_and_segs')
     train, val, test = split_data(sorted_dictionary)
