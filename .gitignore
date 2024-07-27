@@ -12,3 +12,4 @@ toy_dataset/
 toy_rand/
 healthy_patients/
 healthy_patient_csvs/
+*.xlsx
