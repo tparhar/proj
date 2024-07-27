@@ -64,8 +64,16 @@ val_batch_size = params["val_batch_size"]
 num_workers = params["num_workers"]
 exp_name = "testing/"
 
-def main(tempdir):
-    monai.config.print_config()
+def main():
+    print(
+        "HYPERPARAMETERS\n"\
+        "---------------\n"\
+        "Epochs: {}\n"\
+        "Learning Rate: {}\n"\
+        "Train Batch Size: {}\n"\
+        "Validation Batch Size: {}\n"\
+        "Num Workers: {}\n".format(num_epochs, lr, train_batch_size, val_batch_size, num_workers)
+    )
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger('pydicom')
     logger.disabled = True
@@ -79,14 +87,6 @@ def main(tempdir):
             EnsureChannelFirstd(keys=["img", "seg"]),
             Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
             ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
-            RandAdjustContrastd(keys="img"),
-            RandShiftIntensityd(keys="img", offsets=(10, 20)),
-            RandGaussianNoised(keys="img"),
-            RandRicianNoised(keys="img"),
-            RandKSpaceSpikeNoised(keys="img"),
-            RandAxisFlipd(keys=["img", "seg"], prob=0.5),
-            RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=[0, 1]),
-            ScaleIntensityRangePercentilesd(keys="img", lower=5, upper=95, b_min=0, b_max=1)
         ]
     )
     val_transforms = Compose(
@@ -98,12 +98,6 @@ def main(tempdir):
         ]
     )
 
-    # define dataset, data loader
-    check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, collate_fn=pad_list_data_collate)
-    check_data = monai.utils.misc.first(check_loader)
-    print(check_data["img"].shape, check_data["seg"].shape)
     # create a training data loader
     train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
@@ -136,7 +130,6 @@ def main(tempdir):
     ).to(device)
     loss_function = monai.losses.DiceCELoss(sigmoid=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=50)
 
     # start a typical PyTorch training
     val_interval = 2
@@ -152,7 +145,6 @@ def main(tempdir):
         epoch_loss = 0
         epoch_len = len(train_ds) // train_loader.batch_size
         step = 0
-        current_lr = scheduler.get_last_lr()[0]
         for batch_data in train_loader:
             step += 1
             inputs, labels = batch_data["img"].to(device), batch_data["seg"].to(device)
@@ -164,7 +156,7 @@ def main(tempdir):
             epoch_loss += loss.item()
         epoch_loss /= step
         writer.add_scalar("train_loss", epoch_loss, epoch + 1)
-        print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f} current_lr: {current_lr:.3e}")
+        print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
 
         if (epoch + 1) % val_interval == 0:
             model.eval()
@@ -189,7 +181,6 @@ def main(tempdir):
                 f1_score_metric = confusion_matrix_metrics_function.aggregate()[2].item()
                 iou_metric = iou_metric_function.aggregate().item()
 
-                scheduler.step(metric)
                 # reset the status for next validation round
                 dice_metric.reset()
                 confusion_matrix_metrics_function.reset()
@@ -200,9 +191,13 @@ def main(tempdir):
                     best_metric_epoch = epoch + 1
                     torch.save(model.state_dict(), logdir + "/best_metric_model_segmentation2d_dict.pth")
                     print("saved new best metric model")
+
+                # printing all metrics to console
                 print(
-                    "current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}".format(
-                        epoch + 1, metric, best_metric, best_metric_epoch
+                    "current epoch: {} current mean dice: {:.4f} current mean precision: {:.4f}\n"\
+                    "current mean recall: {:.4f} current mean f1 score: {:.4f} current mean iou: {:.4f}\n"\
+                    "best mean dice: {:.4f} at epoch {}".format(
+                        epoch + 1, metric, precision_metric, recall_metric, f1_score_metric, iou_metric, best_metric, best_metric_epoch
                     )
                 )
 
@@ -221,20 +216,4 @@ def main(tempdir):
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
 
 if __name__ == "__main__":
-    with tempfile.TemporaryDirectory() as tempdir:
-        main(tempdir)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    main()
