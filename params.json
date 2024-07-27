@@ -10,7 +10,7 @@
         "learning_rate": 0.001,
         "epochs": 10,
         "train_batch_size": 2,
-        "val_batch_size": 1,
+        "val_batch_size": 2,
         "num_workers": 6
     },
     "high_learning_rate": {

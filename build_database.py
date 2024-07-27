@@ -165,7 +165,6 @@ def split_data(data_dict, train_percent=0.7, val_percent=0.15, test_percent=0.15
 
     # Sort the patient keys
     patients = sorted(data_dict.keys(), key=lambda item: int(item[1:]))
-    set_trace()
     random.Random(42).shuffle(patients)
 
     # Calculate the number of patients for each set
