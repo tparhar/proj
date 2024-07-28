@@ -32,14 +32,17 @@ import build_database
 from pdb import set_trace
 
 def main():
-    with open("./testing.yaml") as file:
+    with open("./yaml_files/testing.yaml") as file:
         config = yaml.safe_load(file)
     
     run = wandb.init(
+        project="my-awesome-project",
         config=config,
+        tags=["Testing"],
+        notes="Testing if the new transforms even work without throwing an error"
     )
 
-    database_folder = wandb.config.database_folder
+    database_folder = 'toy_rand'
 
     num_epochs = wandb.config.epochs
     lr = wandb.config.lr
@@ -68,6 +71,11 @@ def main():
             EnsureChannelFirstd(keys=["img", "seg"]),
             Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
             ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
+            RandAdjustContrastd(keys=["img"], prob=0.1, gamma=(0.5, 4.5)),
+            Rand2DElasticd(keys=["img", "seg"], prob=0.1, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="reflection", mode=["bilinear", "nearest"]),
+            RandAxisFlipd(keys=["img", "seg"], prob=0.5),
+            RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=(0, 1)),
+            ScaleIntensityRangePercentilesd(keys="img", lower=5, upper=95, b_min=0, b_max=1),
         ]
     )
     val_transforms = Compose(

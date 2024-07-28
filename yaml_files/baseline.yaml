@@ -3,7 +3,6 @@ program: monaitrain_wandb.py
 method: random
 name: sweepbaseline
 project: proj
-database_folder: "imgs_and_segs"
 metric:
   goal: maximize
   name: dice
@@ -18,10 +17,6 @@ parameters:
     values: [150, 350, 500]
   num_workers:
     value: 6
-run:
-  tags:
-    - baseline
-  notes: "This sweep is to establish a baseline performance of the model to try and improve from"
 early_terminate:
   type: hyperband
   max_iter: 500
