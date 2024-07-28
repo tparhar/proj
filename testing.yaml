@@ -1,0 +1,11 @@
+#Testing.yaml
+project: my-awesome-project
+lr: 0.001
+epochs: 10
+train_batch_size: 2
+val_batch_size: 2
+num_workers: 6
+database_folder: "toy_rand"
+tags:
+  - Testing
+notes: Checking if the new transforms work at all and the code doesn't break
