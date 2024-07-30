@@ -302,7 +302,7 @@ transforms_dict = {
                 LoadImaged(keys=["img", "seg"]),
                 EnsureChannelFirstd(keys=["img", "seg"]),
                 ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
-                RandSpatialCropSamplesd(keys=["img", "seg"], roi_size=patch_size, num_samples=spatial_crop_num_samples, random_center=True, random_size=False, overlap=overlap), # type: ignore
+                RandSpatialCropSamplesd(keys=["img", "seg"], roi_size=patch_size, num_samples=spatial_crop_num_samples, random_center=True, random_size=False), # type: ignore
                 RandAdjustContrastd(keys=["img"], prob=0.3, gamma=(0.5, 4.5)),
                 Rand2DElasticd(keys=["img", "seg"], prob=0.3, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="reflection", mode=["bilinear", "nearest"]),
                 RandAxisFlipd(keys=["img", "seg"], prob=0.5),
@@ -315,7 +315,7 @@ transforms_dict = {
                 LoadImaged(keys=["img", "seg"]),
                 EnsureChannelFirstd(keys=["img", "seg"]),
                 ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
-                RandSpatialCropSamplesd(keys=["img", "seg"], roi_size=patch_size, num_samples=spatial_crop_num_samples, random_center=False, random_size=False, overlap=overlap), # type: ignore
+                RandSpatialCropSamplesd(keys=["img", "seg"], roi_size=patch_size, num_samples=spatial_crop_num_samples, random_center=False, random_size=False), # type: ignore
             ]
         ),
         "test": Compose(
