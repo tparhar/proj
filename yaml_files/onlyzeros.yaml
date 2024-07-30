@@ -5,7 +5,7 @@ name: sweeponlyzeros
 project: proj
 metric:
   goal: maximize
-  name: test_dice
+  name: dice
 parameters:
   train_batch_size:
     values: 32
