@@ -230,103 +230,110 @@ def load_hyperparameters(file_path, *args):
 def load_config(config_file):
     with open(config_file) as file:
         config = yaml.safe_load(file)
+    return config
 
-transforms_dict = {
-    "testing": {
-        "training": Compose(
-            [
-                LoadImaged(keys=["img", "seg"]),
-                EnsureChannelFirstd(keys=["img", "seg"]),
-                Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
-                ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
-                RandAdjustContrastd(keys=["img"], prob=0.1, gamma=(0.5, 4.5)),
-                Rand2DElasticd(keys=["img", "seg"], prob=0.1, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="reflection", mode=["bilinear", "nearest"]),
-                RandAxisFlipd(keys=["img", "seg"], prob=0.5),
-                RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=(0, 1)),
-                ScaleIntensityRangePercentilesd(keys="img", lower=5, upper=95, b_min=0, b_max=1),
-            ]
-        ),
-        "validation": Compose(
-            [
-                LoadImaged(keys=["img", "seg"]),
-                EnsureChannelFirstd(keys=["img", "seg"]),
-                Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
-                ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
-            ]
-        ),
-        "test": Compose(
-            [
-                LoadImaged(keys=["img", "seg"]),
-                EnsureChannelFirstd(keys=["img", "seg"]),
-                Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
-                ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
-            ]
-        )
-
-    },
-    "baseline": {
-        "training": Compose(
-            [
-                LoadImaged(keys=["img", "seg"]),
-                EnsureChannelFirstd(keys=["img", "seg"]),
-                Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
-                ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
-                RandAdjustContrastd(keys=["img"], prob=0.1, gamma=(0.5, 4.5)),
-                Rand2DElasticd(keys=["img", "seg"], prob=0.1, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="reflection", mode=["bilinear", "nearest"]),
-                RandAxisFlipd(keys=["img", "seg"], prob=0.5),
-                RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=(0, 1)),
-                ScaleIntensityRangePercentilesd(keys="img", lower=5, upper=95, b_min=0, b_max=1),
-            ]
-        ),
-        "validation": Compose(
-            [
-                LoadImaged(keys=["img", "seg"]),
-                EnsureChannelFirstd(keys=["img", "seg"]),
-                Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
-                ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
-            ]
-        ),
-        "test": Compose(
-            [
-                LoadImaged(keys=["img", "seg"]),
-                EnsureChannelFirstd(keys=["img", "seg"]),
-                Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
-                ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
-            ]
-        )
-
-    },
-    "onlyzeros": {
-        "training": Compose(
-            [
-                LoadImaged(keys=["img", "seg"]),
-                EnsureChannelFirstd(keys=["img", "seg"]),
-                ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
-                RandSpatialCropSamplesd(keys=["img", "seg"], roi_size=patch_size, num_samples=spatial_crop_num_samples, random_center=True, random_size=False), # type: ignore
-                RandAdjustContrastd(keys=["img"], prob=0.3, gamma=(0.5, 4.5)),
-                Rand2DElasticd(keys=["img", "seg"], prob=0.3, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="reflection", mode=["bilinear", "nearest"]),
-                RandAxisFlipd(keys=["img", "seg"], prob=0.5),
-                RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=(0, 1)),
-                ScaleIntensityRangePercentilesd(keys="img", lower=5, upper=95, b_min=0, b_max=1),
-            ]
-        ),
-        "validation": Compose(
-            [
-                LoadImaged(keys=["img", "seg"]),
-                EnsureChannelFirstd(keys=["img", "seg"]),
-                ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
-                RandSpatialCropSamplesd(keys=["img", "seg"], roi_size=patch_size, num_samples=spatial_crop_num_samples, random_center=False, random_size=False), # type: ignore
-            ]
-        ),
-        "test": Compose(
-            [
-                LoadImaged(keys=["img", "seg"]),
-                EnsureChannelFirstd(keys=["img", "seg"]),
-                ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
-            ]
-        )
-    }
-}
+class TransformDict:
+    def __init__(self, transform_select, patch_size=None, spatial_crop_num_samples=None):
+        self.transform_select = transform_select
+        self.patch_size = patch_size
+        self.spatial_crop_num_samples = spatial_crop_num_samples
+    
+    def return_transform_dict(self):
+        if self.transform_select == 'baseline':
+            return {
+                "training": Compose(
+                    [
+                        LoadImaged(keys=["img", "seg"]),
+                        EnsureChannelFirstd(keys=["img", "seg"]),
+                        Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+                        ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
+                        RandAdjustContrastd(keys=["img"], prob=0.1, gamma=(0.5, 4.5)),
+                        Rand2DElasticd(keys=["img", "seg"], prob=0.1, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="reflection", mode=["bilinear", "nearest"]),
+                        RandAxisFlipd(keys=["img", "seg"], prob=0.5),
+                        RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=(0, 1)),
+                        ScaleIntensityRangePercentilesd(keys="img", lower=5, upper=95, b_min=0, b_max=1),
+                    ]
+                ),
+                "validation": Compose(
+                    [
+                        LoadImaged(keys=["img", "seg"]),
+                        EnsureChannelFirstd(keys=["img", "seg"]),
+                        Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+                        ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
+                    ]
+                ),
+                "test": Compose(
+                    [
+                        LoadImaged(keys=["img", "seg"]),
+                        EnsureChannelFirstd(keys=["img", "seg"]),
+                        Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+                        ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
+                    ]
+                )
+            }
+        elif self.transform_select == 'testing':
+            return {
+                "training": Compose(
+                    [
+                        LoadImaged(keys=["img", "seg"]),
+                        EnsureChannelFirstd(keys=["img", "seg"]),
+                        Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+                        ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
+                        RandAdjustContrastd(keys=["img"], prob=0.1, gamma=(0.5, 4.5)),
+                        Rand2DElasticd(keys=["img", "seg"], prob=0.1, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="reflection", mode=["bilinear", "nearest"]),
+                        RandAxisFlipd(keys=["img", "seg"], prob=0.5),
+                        RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=(0, 1)),
+                        ScaleIntensityRangePercentilesd(keys="img", lower=5, upper=95, b_min=0, b_max=1),
+                    ]
+                ),
+                "validation": Compose(
+                    [
+                        LoadImaged(keys=["img", "seg"]),
+                        EnsureChannelFirstd(keys=["img", "seg"]),
+                        Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+                        ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
+                    ]
+                ),
+                "test": Compose(
+                    [
+                        LoadImaged(keys=["img", "seg"]),
+                        EnsureChannelFirstd(keys=["img", "seg"]),
+                        Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
+                        ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
+                    ]
+                )
+            }
+        elif self.transform_select == 'onlyzeros':
+            return {
+                "training": Compose(
+                    [
+                        LoadImaged(keys=["img", "seg"]),
+                        EnsureChannelFirstd(keys=["img", "seg"]),
+                        ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
+                        RandSpatialCropSamplesd(keys=["img", "seg"], roi_size=self.patch_size, num_samples=self.spatial_crop_num_samples, random_center=True, random_size=False),
+                        RandAdjustContrastd(keys=["img"], prob=0.3, gamma=(0.5, 4.5)),
+                        Rand2DElasticd(keys=["img", "seg"], prob=0.3, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="reflection", mode=["bilinear", "nearest"]),
+                        RandAxisFlipd(keys=["img", "seg"], prob=0.5),
+                        RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=(0, 1)),
+                        ScaleIntensityRangePercentilesd(keys="img", lower=5, upper=95, b_min=0, b_max=1),
+                    ]
+                ),
+                "validation": Compose(
+                    [
+                        LoadImaged(keys=["img", "seg"]),
+                        EnsureChannelFirstd(keys=["img", "seg"]),
+                        ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
+                        RandSpatialCropSamplesd(keys=["img", "seg"], roi_size=self.patch_size, num_samples=self.spatial_crop_num_samples, random_center=False, random_size=False),
+                    ]
+                ),
+                "test": Compose(
+                    [
+                        LoadImaged(keys=["img", "seg"]),
+                        EnsureChannelFirstd(keys=["img", "seg"]),
+                        ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
+                    ]
+                )
+            }
 
 if __name__ == "__main__":
     # TESTING

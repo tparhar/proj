@@ -33,6 +33,8 @@ def main():
 
     config = build_database.load_config(args.config)
 
+    set_trace()
+
     if 'baseline' in args.config:
         run = wandb.init(
             project="proj",
@@ -48,6 +50,9 @@ def main():
         train_batch_size = wandb.config.train_batch_size
         val_batch_size = wandb.config.val_batch_size
         num_workers = wandb.config.num_workers
+        patch_size = None
+        spatial_crop_num_samples = None
+        overlap = None
 
         transform_select = 'baseline'
         inference_select = 'regular'
@@ -93,6 +98,9 @@ def main():
         train_batch_size = wandb.config.train_batch_size
         val_batch_size = wandb.config.val_batch_size
         num_workers = wandb.config.num_workers
+        patch_size = None
+        spatial_crop_num_samples = None
+        overlap = None
 
         transform_select = 'testing'
         inference_select = 'regular'
@@ -114,9 +122,9 @@ def main():
     logger = logging.getLogger('pydicom')
     logger.disabled = True
 
-    train_transforms = build_database.transforms_dict[transform_select]["training"]
-    val_transforms = build_database.transforms_dict[transform_select]["validation"]
-    test_transforms = build_database.transforms_dict[transform_select]["test"]
+    train_transforms = build_database.TransformDict(transform_select, patch_size, spatial_crop_num_samples).return_transform_dict()["training"]
+    val_transforms = build_database.TransformDict(transform_select, patch_size, spatial_crop_num_samples).return_transform_dict()["validation"]
+    test_transforms = build_database.TransformDict(transform_select, patch_size, spatial_crop_num_samples).return_transform_dict()["test"]
 
     post_trans = Compose(
         [
@@ -238,7 +246,6 @@ def main():
                         "ground_truth": {"mask_data": val_label}
                     }
                 )
-
 
                 wandb.log(
                     {
