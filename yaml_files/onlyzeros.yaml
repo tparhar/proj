@@ -8,9 +8,9 @@ metric:
   name: dice
 parameters:
   train_batch_size:
-    values: 32
+    value: 32
   val_batch_size:
-    values: 32
+    value: 32
   lr:
     values: [0.001, 0.0001]
   epochs:
