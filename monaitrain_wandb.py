@@ -16,16 +16,8 @@ from monai.data import pad_list_data_collate, decollate_batch, DataLoader
 from monai.metrics import ConfusionMatrixMetric, DiceMetric, MeanIoU
 from monai.transforms import (
     Activations,
-    EnsureChannelFirstd,
     AsDiscrete,
     Compose,
-    LoadImaged,
-    RandAdjustContrastd,
-    RandAxisFlipd,
-    RandRotate90d,
-    Rand2DElasticd,
-    Resized,
-    ScaleIntensityRangePercentilesd,
 )
 from monai.visualize import plot_2d_or_3d_image
 
@@ -55,6 +47,11 @@ def main():
         train_batch_size = wandb.config.train_batch_size
         val_batch_size = wandb.config.val_batch_size
         num_workers = wandb.config.num_workers
+
+        transform_select = 'baseline'
+
+        dataset = build_database.parse_database(database_folder)
+        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=False, train_percent=0.7, val_percent=0.3, test_percent=0.0)
     elif 'onlyzeros' in args.config:
         run = wandb.init(
             project="proj",
@@ -73,6 +70,11 @@ def main():
         patch_size = wandb.config.spatial_crop
         spatial_crop_num_samples = wandb.config.spatial_crop_num_samples
         overlap = wandb.config.overlap
+
+        transform_select = 'onlyzeros'
+
+        dataset = build_database.parse_database(database_folder)
+        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=True, train_percent=0.7, val_percent=0.3, test_percent=0.0)
     elif 'testing' in args.config:
         run = wandb.init(
             project="my-awesome-project",
@@ -88,8 +90,13 @@ def main():
         train_batch_size = wandb.config.train_batch_size
         val_batch_size = wandb.config.val_batch_size
         num_workers = wandb.config.num_workers
+
+        transform_select = 'testing'
+
+        dataset = build_database.parse_database(database_folder)
+        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=False, train_percent=0.7, val_percent=0.3, test_percent=0.0)
     else:
-        raise ValueError("Should've specified some config file")
+        raise ValueError("Some random error, don't know how it happened.")
 
     print(
         "HYPERPARAMETERS\n"\
@@ -103,30 +110,9 @@ def main():
     logger = logging.getLogger('pydicom')
     logger.disabled = True
 
-    dataset = build_database.parse_database(database_folder)
-    train_files, val_files, test_files = build_database.split_data(dataset, train_percent=0.7, val_percent=0.3, test_percent=0.0)
-    # define transforms for image and segmentation
-    train_transforms = Compose(
-        [
-            LoadImaged(keys=["img", "seg"]),
-            EnsureChannelFirstd(keys=["img", "seg"]),
-            Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
-            ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
-            RandAdjustContrastd(keys=["img"], prob=0.1, gamma=(0.5, 4.5)),
-            Rand2DElasticd(keys=["img", "seg"], prob=0.1, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="reflection", mode=["bilinear", "nearest"]),
-            RandAxisFlipd(keys=["img", "seg"], prob=0.5),
-            RandRotate90d(keys=["img", "seg"], prob=0.5, spatial_axes=(0, 1)),
-            ScaleIntensityRangePercentilesd(keys="img", lower=5, upper=95, b_min=0, b_max=1),
-        ]
-    )
-    val_transforms = Compose(
-        [
-            LoadImaged(keys=["img", "seg"]),
-            EnsureChannelFirstd(keys=["img", "seg"]),
-            Resized(keys=["img", "seg"], spatial_size=[256, 256], mode=["bilinear", "nearest"]),
-            ScaleIntensityRangePercentilesd(keys=["img"], lower=0, upper=100, b_min=0, b_max=1),
-        ]
-    )
+    train_transforms = build_database.transforms_dict[transform_select]["training"]
+    val_transforms = build_database.transforms_dict[transform_select]["validation"]
+    test_transforms = build_database.transforms_dict[transform_select]["test"]
 
     post_trans = Compose(
         [
@@ -146,7 +132,20 @@ def main():
     )
 
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=val_batch_size, num_workers=num_workers, collate_fn=pad_list_data_collate)
+    val_loader = DataLoader(
+        val_ds,
+        batch_size=val_batch_size,
+        num_workers=num_workers,
+        collate_fn=pad_list_data_collate
+    )
+
+    test_ds = monai.data.Dataset(data=test_files, transform=test_transforms)
+    test_loader = DataLoader(
+        test_ds,
+        batch_size=1,
+        num_workers=num_workers,
+        collate_fn=pad_list_data_collate
+    )
 
     dice_metric = DiceMetric()
     confusion_matrix_metrics_function = ConfusionMatrixMetric(metric_name=["precision", "recall", "f1 score"], compute_sample=True)
