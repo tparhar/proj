@@ -6,6 +6,7 @@ import random
 import pydicom
 import numpy as np
 import cv2
+import yaml
 
 from re import findall
 from pdb import set_trace
@@ -159,7 +160,7 @@ def parse_database(database_folder):
 import os
 from collections import defaultdict
 
-def split_data(data_dict, train_percent=0.7, val_percent=0.15, test_percent=0.15):
+def split_data(data_dict, onlyzeros: bool, train_percent=0.7, val_percent=0.15, test_percent=0.15):
     # Ensure the percentages sum to 1
     assert train_percent + val_percent + test_percent == 1, "Percentages must sum to 1."
 
@@ -188,8 +189,13 @@ def split_data(data_dict, train_percent=0.7, val_percent=0.15, test_percent=0.15
         seg = pair.get('seg', '')
         return img and seg and img.endswith('img_0.dcm') and seg.endswith('seg_0.dcm')
 
-    for patient in train_patients:
-        train_set.extend([pair for pair in data_dict[patient] if pair.get('img', '') and pair.get('seg', '')])
+    if onlyzeros:   
+        for patient in train_patients:
+            train_set.extend([pair for pair in data_dict[patient] if is_valid_pair(pair)])
+    else:
+        for patient in train_patients:
+            train_set.extend([pair for pair in data_dict[patient] if pair.get('img', '') and pair.get('seg', '')])
+
 
     # Assign data to the validation and test sets
     for patient in val_patients:
@@ -209,6 +215,10 @@ def load_hyperparameters(file_path, *args):
         base_params.update(all_params.get(param_set, {}))
     
     return base_params
+
+def load_config(config_file):
+    with open(config_file) as file:
+        config = yaml.safe_load(file)
 
 if __name__ == "__main__":
     # TESTING
