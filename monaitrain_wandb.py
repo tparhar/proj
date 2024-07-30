@@ -33,8 +33,6 @@ def main():
 
     config = build_database.load_config(args.config)
 
-    set_trace()
-
     if 'baseline' in args.config:
         run = wandb.init(
             project="proj",
@@ -119,6 +117,13 @@ def main():
         "Validation Batch Size: {}\n"\
         "Num Workers: {}\n".format(num_epochs, lr, train_batch_size, val_batch_size, num_workers)
     )
+
+    wandb.define_metric("dice", summary="max")
+    wandb.define_metric("precision", summary="max")
+    wandb.define_metric("recall", summary="max")
+    wandb.define_metric("f1 score", summary="max")
+    wandb.define_metric("iou", summary="max")
+
     logger = logging.getLogger('pydicom')
     logger.disabled = True
 
@@ -280,5 +285,68 @@ def main():
 
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
 
+    #Inference Section - this is the stuff that really matters
+    model.load_state_dict(torch.load(model_save_path))
+    model.eval()
+    with torch.no_grad():
+        test_images = None
+        test_labels = None
+        test_outputs = None
+        for test_data in test_loader:
+            test_images, test_labels = test_data["img"].to(device), test_data["seg"].to(device)
+            if inference_select == 'sliding_window':
+                test_outputs = sliding_window_inference(
+                    val_images,
+                    patch_size,
+                    sw_batch_size=spatial_crop_num_samples,
+                    predictor=model,
+                    overlap=overlap
+                )
+            else:
+                test_outputs = model(val_images)
+            test_outputs = [post_trans(i) for i in decollate_batch(test_outputs)]
+            test_outputs = torch.stack(test_outputs)
+            # compute metric for current iteration
+            dice_metric(y_pred=test_outputs, y=test_labels)
+            confusion_matrix_metrics_function(y_pred=test_outputs, y=test_labels)
+            iou_metric_function(y_pred=test_outputs, y=test_labels)
+    
+        # aggregate the final mean metrics result
+        metric = dice_metric.aggregate().item()
+        precision_metric = confusion_matrix_metrics_function.aggregate()[0].item()
+        recall_metric = confusion_matrix_metrics_function.aggregate()[1].item()
+        f1_score_metric = confusion_matrix_metrics_function.aggregate()[2].item()
+        iou_metric = iou_metric_function.aggregate().item()
+
+        wandb.run.summary["test_dice"] = metric
+        wandb.run.summary["test_precision"] = precision_metric
+        wandb.run.summary["test_recall"] = recall_metric
+        wandb.run.summary["test_f1_score"] = f1_score_metric
+        wandb.run.summary["test_iou"] = iou_metric
+        print(
+            "test mean dice: {:.4f} test mean precision: {:.4f}\n"\
+            "test mean recall: {:.4f} test mean f1 score: {:.4f} test mean iou: {:.4f}\n".format
+            (
+                metric, precision_metric, recall_metric, f1_score_metric, iou_metric
+            )
+        )
+        test_image = test_images[0].permute(1, 2, 0).cpu().numpy()
+        test_label = test_labels[0][0].cpu().numpy()
+        test_output = test_outputs[0][0].cpu().numpy()
+
+        test_mask_imgs = wandb.Image(
+            test_image,
+            masks={
+                "predictions": {"mask_data": test_output},
+                "ground_truth": {"mask_data": test_label}
+            }
+        )
+
+        wandb.log(
+            {
+               "test_examples": test_mask_imgs 
+            }
+        )
+        run.finish()
 if __name__ == "__main__":
     main()
