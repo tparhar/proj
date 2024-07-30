@@ -21,6 +21,7 @@ from monai.transforms import (
     Compose,
 )
 from monai.visualize import plot_2d_or_3d_image
+from ast import literal_eval
 
 import build_database
 from pdb import set_trace
@@ -72,7 +73,7 @@ def main():
         train_batch_size = wandb.config.train_batch_size
         val_batch_size = wandb.config.val_batch_size
         num_workers = wandb.config.num_workers
-        patch_size = wandb.config.spatial_crop
+        patch_size = literal_eval(wandb.config.spatial_crop)
         spatial_crop_num_samples = wandb.config.spatial_crop_num_samples
         overlap = wandb.config.overlap
 
