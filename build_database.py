@@ -323,7 +323,6 @@ class TransformDict:
                         LoadImaged(keys=["img", "seg"]),
                         EnsureChannelFirstd(keys=["img", "seg"]),
                         ScaleIntensityRangePercentilesd(keys="img", lower=0, upper=100, b_min=0, b_max=1),
-                        RandSpatialCropSamplesd(keys=["img", "seg"], roi_size=self.patch_size, num_samples=self.spatial_crop_num_samples, random_center=False, random_size=False),
                     ]
                 ),
                 "test": Compose(

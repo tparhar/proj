@@ -12,7 +12,7 @@ import yaml
 import argparse
 
 import monai
-from monai.data import pad_list_data_collate, decollate_batch, DataLoader
+from monai.data import list_data_collate, pad_list_data_collate, decollate_batch, DataLoader
 from monai.inferers import sliding_window_inference
 from monai.metrics import ConfusionMatrixMetric, DiceMetric, MeanIoU
 from monai.transforms import (
@@ -54,6 +54,8 @@ def main():
 
         transform_select = 'baseline'
         inference_select = 'regular'
+        train_collate_fn = list_data_collate
+        val_and_test_collate_fn = list_data_collate
 
         dataset = build_database.parse_database(database_folder)
         train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=False, train_percent=0.7, val_percent=0.3, test_percent=0.0)
@@ -78,6 +80,8 @@ def main():
 
         transform_select = 'onlyzeros'
         inference_select = 'sliding_window'
+        train_collate_fn = list_data_collate
+        val_and_test_collate_fn = pad_list_data_collate
 
         dataset = build_database.parse_database(database_folder)
         train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=True, train_percent=0.7, val_percent=0.3, test_percent=0.0)
@@ -102,6 +106,8 @@ def main():
 
         transform_select = 'testing'
         inference_select = 'regular'
+        train_collate_fn = list_data_collate
+        val_and_test_collate_fn = list_data_collate
 
         dataset = build_database.parse_database(database_folder)
         train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=True, train_percent=0.7, val_percent=0.3, test_percent=0.0)
@@ -144,16 +150,15 @@ def main():
         batch_size=train_batch_size,
         shuffle=True,
         num_workers=num_workers,
-        collate_fn=pad_list_data_collate,
+        collate_fn=train_collate_fn,
         pin_memory=torch.cuda.is_available(),
     )
-
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = DataLoader(
         val_ds,
         batch_size=val_batch_size,
         num_workers=num_workers,
-        collate_fn=pad_list_data_collate
+        collate_fn=val_and_test_collate_fn
     )
 
     test_ds = monai.data.Dataset(data=test_files, transform=test_transforms)
@@ -161,7 +166,7 @@ def main():
         test_ds,
         batch_size=1,
         num_workers=num_workers,
-        collate_fn=pad_list_data_collate
+        collate_fn=val_and_test_collate_fn
     )
 
     dice_metric = DiceMetric(include_background=False)
@@ -227,7 +232,6 @@ def main():
                     else:
                         val_outputs = model(val_images)
                     val_outputs = [post_trans(i) for i in decollate_batch(val_outputs)]
-                    val_outputs = torch.stack(val_outputs)
                     # compute metric for current iteration
                     dice_metric(y_pred=val_outputs, y=val_labels)
                     confusion_matrix_metrics_function(y_pred=val_outputs, y=val_labels)
@@ -305,7 +309,6 @@ def main():
             else:
                 test_outputs = model(val_images)
             test_outputs = [post_trans(i) for i in decollate_batch(test_outputs)]
-            test_outputs = torch.stack(test_outputs)
             # compute metric for current iteration
             dice_metric(y_pred=test_outputs, y=test_labels)
             confusion_matrix_metrics_function(y_pred=test_outputs, y=test_labels)
