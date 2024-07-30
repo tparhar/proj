@@ -9,6 +9,7 @@ import torch
 import torchvision
 import wandb
 import yaml
+import argparse
 
 import monai
 from monai.data import pad_list_data_collate, decollate_batch, DataLoader
@@ -32,23 +33,63 @@ import build_database
 from pdb import set_trace
 
 def main():
-    with open("./yaml_files/testing.yaml") as file:
-        config = yaml.safe_load(file)
-    
-    run = wandb.init(
-        project="my-awesome-project",
-        config=config,
-        tags=["Testing"],
-        notes="Testing if the new transforms even work without throwing an error"
-    )
+    parser = argparse.ArgumentParser(description="Run a WandB sweep with a specified config file.")
+    parser.add_argument('--config', type=str, required=True, help="Path to the YAML config file.")
 
-    database_folder = 'toy_rand'
+    args, unknown = parser.parse_known_args()
 
-    num_epochs = wandb.config.epochs
-    lr = wandb.config.lr
-    train_batch_size = wandb.config.train_batch_size
-    val_batch_size = wandb.config.val_batch_size
-    num_workers = wandb.config.num_workers
+    config = build_database.load_config(args.config)
+
+    if 'baseline' in args.config:
+        run = wandb.init(
+            project="proj",
+            config=config,
+            tags=["Baseline"],
+            notes="Testing how baseline performs"
+        )
+
+        database_folder = 'imgs_and_segs'
+
+        num_epochs = wandb.config.epochs
+        lr = wandb.config.lr
+        train_batch_size = wandb.config.train_batch_size
+        val_batch_size = wandb.config.val_batch_size
+        num_workers = wandb.config.num_workers
+    elif 'onlyzeros' in args.config:
+        run = wandb.init(
+            project="proj",
+            config=config,
+            tags=["OnlyZeros"],
+            notes="Checking performance of onlyzeros config"
+        )
+
+        database_folder = 'imgs_and_segs'
+
+        num_epochs = wandb.config.epochs
+        lr = wandb.config.lr
+        train_batch_size = wandb.config.train_batch_size
+        val_batch_size = wandb.config.val_batch_size
+        num_workers = wandb.config.num_workers
+        patch_size = wandb.config.spatial_crop
+        spatial_crop_num_samples = wandb.config.spatial_crop_num_samples
+        overlap = wandb.config.overlap
+    elif 'testing' in args.config:
+        run = wandb.init(
+            project="my-awesome-project",
+            config=config,
+            tags=["Testing"],
+            notes="Regular testing - no special config"
+        )
+
+        database_folder = 'toy_rand'
+
+        num_epochs = wandb.config.epochs
+        lr = wandb.config.lr
+        train_batch_size = wandb.config.train_batch_size
+        val_batch_size = wandb.config.val_batch_size
+        num_workers = wandb.config.num_workers
+    else:
+        raise ValueError("Should've specified some config file")
 
     print(
         "HYPERPARAMETERS\n"\

@@ -1,0 +1,30 @@
+#config.yaml
+program: monaitrain_wandb.py
+method: random
+name: sweeponlyzeros
+project: proj
+metric:
+  goal: maximize
+  name: test_dice
+parameters:
+  train_batch_size:
+    values: 32
+  val_batch_size:
+    values: 32
+  lr:
+    values: [0.001, 0.0001]
+  epochs:
+    values: [150, 350, 500]
+  num_workers:
+    value: 4
+  spatial_crop:
+    values: [!!python/tuple [128, 128], !!python/tuple [164, 164]]
+  spatial_crop_num_samples:
+    values: [4, 5]
+  overlap:
+    values: [0.25, 0.3]
+early_terminate:
+  type: hyperband
+  max_iter: 500
+  s: 2
+  eta: 3

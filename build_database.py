@@ -196,7 +196,6 @@ def split_data(data_dict, onlyzeros: bool, train_percent=0.7, val_percent=0.15, 
         for patient in train_patients:
             train_set.extend([pair for pair in data_dict[patient] if pair.get('img', '') and pair.get('seg', '')])
 
-
     # Assign data to the validation and test sets
     for patient in val_patients:
         val_set.extend([pair for pair in data_dict[patient] if is_valid_pair(pair)])
