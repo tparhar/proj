@@ -13,6 +13,7 @@ import argparse
 
 import monai
 from monai.data import pad_list_data_collate, decollate_batch, DataLoader
+from monai.inferers import sliding_window_inference
 from monai.metrics import ConfusionMatrixMetric, DiceMetric, MeanIoU
 from monai.transforms import (
     Activations,
@@ -49,6 +50,7 @@ def main():
         num_workers = wandb.config.num_workers
 
         transform_select = 'baseline'
+        inference_select = 'regular'
 
         dataset = build_database.parse_database(database_folder)
         train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=False, train_percent=0.7, val_percent=0.3, test_percent=0.0)
@@ -72,6 +74,7 @@ def main():
         overlap = wandb.config.overlap
 
         transform_select = 'onlyzeros'
+        inference_select = 'sliding_window'
 
         dataset = build_database.parse_database(database_folder)
         train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=True, train_percent=0.7, val_percent=0.3, test_percent=0.0)
@@ -92,9 +95,10 @@ def main():
         num_workers = wandb.config.num_workers
 
         transform_select = 'testing'
+        inference_select = 'regular'
 
         dataset = build_database.parse_database(database_folder)
-        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=False, train_percent=0.7, val_percent=0.3, test_percent=0.0)
+        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=True, train_percent=0.7, val_percent=0.3, test_percent=0.0)
     else:
         raise ValueError("Some random error, don't know how it happened.")
 
@@ -147,9 +151,9 @@ def main():
         collate_fn=pad_list_data_collate
     )
 
-    dice_metric = DiceMetric()
-    confusion_matrix_metrics_function = ConfusionMatrixMetric(metric_name=["precision", "recall", "f1 score"], compute_sample=True)
-    iou_metric_function = MeanIoU()
+    dice_metric = DiceMetric(include_background=False)
+    confusion_matrix_metrics_function = ConfusionMatrixMetric(include_background=False, metric_name=["precision", "recall", "f1 score"], compute_sample=True)
+    iou_metric_function = MeanIoU(include_background=False)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.UNet(
@@ -160,7 +164,7 @@ def main():
         strides=(2, 2, 2, 2),
         num_res_units=2,
     ).to(device)
-    loss_function = monai.losses.DiceCELoss(sigmoid=True)
+    loss_function = monai.losses.DiceCELoss(include_background=False, sigmoid=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     # start a typical PyTorch training
@@ -199,7 +203,16 @@ def main():
                 val_outputs = None
                 for val_data in val_loader:
                     val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
-                    val_outputs = model(val_images)
+                    if inference_select == 'sliding_window':
+                        val_outputs = sliding_window_inference(
+                            val_images,
+                            patch_size,
+                            sw_batch_size=spatial_crop_num_samples,
+                            predictor=model,
+                            overlap=overlap
+                        )
+                    else:
+                        val_outputs = model(val_images)
                     val_outputs = [post_trans(i) for i in decollate_batch(val_outputs)]
                     val_outputs = torch.stack(val_outputs)
                     # compute metric for current iteration
