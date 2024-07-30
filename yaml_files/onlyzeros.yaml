@@ -18,7 +18,7 @@ parameters:
   num_workers:
     value: 4
   spatial_crop:
-    values: [(128, 128), (164, 164)]
+    values: [[128, 128], [164, 164]]
   spatial_crop_num_samples:
     values: [4, 5]
   overlap:
