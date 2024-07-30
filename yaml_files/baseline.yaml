@@ -22,3 +22,10 @@ early_terminate:
   max_iter: 500
   s: 2
   eta: 3
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "--config"
+  - "./yaml_files/baseline.yaml"
+  - ${args}
