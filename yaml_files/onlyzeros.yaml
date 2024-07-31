@@ -1,7 +1,7 @@
 #config.yaml
 program: monaitrain_wandb.py
 method: random
-name: onlyzeros_more_epochs
+name: onlyzeros_more_epochs_fixed
 project: proj
 metric:
   goal: maximize
