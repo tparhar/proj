@@ -1,7 +1,7 @@
 #config.yaml
 program: monaitrain_wandb.py
 method: random
-name: sweeponlyzeros
+name: onlyzeros_more_epochs
 project: proj
 metric:
   goal: maximize
@@ -14,7 +14,7 @@ parameters:
   lr:
     values: [0.001, 0.0001]
   epochs:
-    values: [150, 350, 500]
+    values: [500, 1000, 1500]
   num_workers:
     value: 4
   spatial_crop:

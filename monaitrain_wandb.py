@@ -58,7 +58,7 @@ def main():
         val_and_test_collate_fn = list_data_collate
 
         dataset = build_database.parse_database(database_folder)
-        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=False, train_percent=0.7, val_percent=0.3, test_percent=0.0)
+        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=False)
     elif 'onlyzeros' in args.config:
         run = wandb.init(
             project="proj",
@@ -84,7 +84,7 @@ def main():
         val_and_test_collate_fn = pad_list_data_collate
 
         dataset = build_database.parse_database(database_folder)
-        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=True, train_percent=0.7, val_percent=0.3, test_percent=0.0)
+        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=True)
     elif 'testing' in args.config:
         run = wandb.init(
             project="my-awesome-project",
@@ -110,9 +110,9 @@ def main():
         val_and_test_collate_fn = list_data_collate
 
         dataset = build_database.parse_database(database_folder)
-        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=True, train_percent=0.7, val_percent=0.3, test_percent=0.0)
+        train_files, val_files, test_files = build_database.split_data(dataset, onlyzeros=True)
     else:
-        raise ValueError("Some random error, don't know how it happened.")
+        raise ValueError("This config file doesn't exist or isn't supported.")
 
     print(
         "HYPERPARAMETERS\n"\
@@ -300,14 +300,14 @@ def main():
             test_images, test_labels = test_data["img"].to(device), test_data["seg"].to(device)
             if inference_select == 'sliding_window':
                 test_outputs = sliding_window_inference(
-                    val_images,
+                    test_images,
                     patch_size,
                     sw_batch_size=spatial_crop_num_samples,
                     predictor=model,
                     overlap=overlap
                 )
             else:
-                test_outputs = model(val_images)
+                test_outputs = model(test_images)
             test_outputs = [post_trans(i) for i in decollate_batch(test_outputs)]
             # compute metric for current iteration
             dice_metric(y_pred=test_outputs, y=test_labels)
