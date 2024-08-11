@@ -14,3 +14,4 @@ healthy_patients/
 healthy_patient_csvs/
 wandb/
 *.xlsx
+*.csv
