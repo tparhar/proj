@@ -17,5 +17,16 @@ bar_plot.py
 include_diagnosis.py
 modify_csv_to_include_diagnosis.py
 remove_missing_diagnosis_codes.py
+monaitrain.py
+params.json
+test.png
+add_dcm_extension.py
+inference.py
+modify_csv_to_include_id.py
+prepdata.py
+renaming_to_fit_labeldi.py
+test_file.py
+visualize_feature_maps.py
+.gitattributes
 *.xlsx
 *.csv
